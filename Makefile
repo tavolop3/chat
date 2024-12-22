@@ -1,4 +1,4 @@
-EXEC = server
+EXEC = client
 
 CFLAGS=-Wall -g
 
