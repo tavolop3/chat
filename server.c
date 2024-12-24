@@ -63,17 +63,19 @@ int main(int argc, char *argv[]) {
               sizeof(address_buffer), 0, 0, NI_NUMERICHOST);
   printf("%s\n", address_buffer);
 
-  printf("Leyendo petición...\n");
-  char request[1024];
-  int bytes_received =
-      recv(socket_client, request, 1024, 0); // ver posibles errores
-  printf("%.*s", bytes_received,
-         request); // imprime solo bytes_received caracteres, podria no terminar
-                   // en nulo y explotar
+  while (1) {
+    printf("Leyendo petición...\n");
+    char request[1024];
+    int bytes_received =
+        recv(socket_client, request, 1024, 0); // ver posibles errores
+    printf("%.*s", bytes_received,
+           request); // imprime solo bytes_received caracteres, podria no
+                     // terminar en nulo y explotar
 
-  const char *response = "Recibido pa.";
-  int bytes_sent = send(socket_client, response, strlen(response), 0);
-  printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(response));
+    const char *response = "Recibido pa.";
+    int bytes_sent = send(socket_client, response, strlen(response), 0);
+    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(response));
+  }
 
   printf("Cerrando la conexión...\n");
   close(socket_client);
