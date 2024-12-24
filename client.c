@@ -71,12 +71,15 @@ int main(int argc, char *argv[]) {
 
   printf("Agregando el socket y stdin al epoll...\n");
   struct epoll_event ev;
-  ev.events = EPOLLIN; // lectura
+  ev.events = EPOLLIN | EPOLLET; // lectura
+
   ev.data.fd = socket_peer;
   if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket_peer, &ev) == -1) {
     perror("epoll_ctl: socket_peer");
     exit(EXIT_FAILURE);
   }
+
+  ev.data.fd = 0;
   if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, 0, &ev) == -1) {
     perror("epoll_ctl: stdin");
     exit(EXIT_FAILURE);
@@ -98,11 +101,12 @@ int main(int argc, char *argv[]) {
         char read[4096];
         int bytes_received = recv(socket_peer, read, 4096, 0);
         if (bytes_received == -1) {
-          perror("recv");
-          exit(EXIT_FAILURE);
+          if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            printf("socket_peer: %d\n", socket_peer);
+            printf("recv: No hay datos disponibles por el momento.\n");
+            continue;
+          }
         }
-        printf("Recibidos (%d bytes): %.*s", bytes_received, bytes_received,
-               read); // %.*s prints a string of specified length
       } else if (events[n].data.fd == 0) { // fd 0 = STDIN
         printf("Entre al terminal\n");
         char read[4096];
