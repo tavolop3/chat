@@ -1,14 +1,14 @@
-EXEC = client
+EXEC = client server
 
 CFLAGS=-Wall -g
 
-all: $(EXEC)
+all: client server
 
-$(EXEC): $(EXEC).c
-	gcc -o $(EXEC) $(EXEC).c
+client:
+	gcc $(CFLAGS) -o client client.c 
 
-run: $(EXEC)
-	./$(EXEC)
+server:
+	gcc $(CFLAGS) -o server server.c
 
 clean:
-	rm main
+	rm client server

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -66,15 +67,19 @@ int main(int argc, char *argv[]) {
   while (1) {
     printf("Leyendo petición...\n");
     char request[1024];
-    int bytes_received =
-        recv(socket_client, request, 1024, 0); // ver posibles errores
-    printf("%.*s", bytes_received,
-           request); // imprime solo bytes_received caracteres, podria no
-                     // terminar en nulo y explotar
+    int bytes_received = recv(socket_client, request, 1024, 0);
+    if (bytes_received == -1) {
+      perror("recv");
+      exit(EXIT_FAILURE);
+    }
+    printf("%.*s", bytes_received, request);
+    // imprime solo bytes_received caracteres, podria no terminar en nulo y
+    // explotar
 
-    const char *response = "Recibido pa.";
-    int bytes_sent = send(socket_client, response, strlen(response), 0);
-    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(response));
+    char buff[50];
+    snprintf(buff, sizeof(buff), "Recibidos %d bytes", bytes_received);
+    int bytes_sent = send(socket_client, buff, strlen(buff), 0);
+    printf("Sent %d of %d bytes.\n", bytes_sent, (int)strlen(buff));
   }
 
   printf("Cerrando la conexión...\n");

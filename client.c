@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
 
   printf("Agregando el socket y stdin al epoll...\n");
   struct epoll_event ev;
-  ev.events = EPOLLIN | EPOLLET; // lectura
+  ev.events = EPOLLIN | EPOLLET; // lectura + edge-triggered
 
   ev.data.fd = socket_peer;
   if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket_peer, &ev) == -1) {
@@ -88,8 +88,8 @@ int main(int argc, char *argv[]) {
   int nfds;
   struct epoll_event events[MAX_EVENTS];
   for (;;) {
-    nfds =
-        epoll_wait(epoll_fd, events, MAX_EVENTS, -1); // timeout indefinido = -1
+    // timeout indefinido = -1
+    nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
     if (nfds == -1) {
       perror("epoll_wait");
       exit(EXIT_FAILURE);
@@ -97,22 +97,17 @@ int main(int argc, char *argv[]) {
 
     for (int n = 0; n < nfds; ++n) {
       if (events[n].data.fd == socket_peer) {
-        printf("Entre al sock peer\n");
         char read[4096];
         int bytes_received = recv(socket_peer, read, 4096, 0);
         if (bytes_received == -1) {
-          if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            printf("socket_peer: %d\n", socket_peer);
-            printf("recv: No hay datos disponibles por el momento.\n");
-            continue;
-          }
+          perror("recv");
+          exit(EXIT_FAILURE);
         }
+        printf("El servidor respondió: %.*s\n", bytes_received, read);
       } else if (events[n].data.fd == 0) { // fd 0 = STDIN
-        printf("Entre al terminal\n");
         char read[4096];
         if (!fgets(read, 4096, stdin))
           break;
-        printf("Enviando: %s", read);
         int bytes_sent = send(socket_peer, read, strlen(read), 0);
         printf("Enviados %d bytes.\n", bytes_sent);
       }
