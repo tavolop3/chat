@@ -28,17 +28,6 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  printf("La dirección remota es: ");
-  char address_buffer[100];
-  char service_buffer[100];
-  getnameinfo(peer_address->ai_addr,
-              peer_address->ai_addrlen, // convierte sock addr a host
-              address_buffer, sizeof(address_buffer), service_buffer,
-              sizeof(service_buffer),
-              NI_NUMERICHOST); // flag host numerico
-  printf("%s %s\n", address_buffer, service_buffer);
-
-  printf("Creando socket...\n");
   int socket_peer;
   socket_peer = socket(peer_address->ai_family, peer_address->ai_socktype,
                        peer_address->ai_protocol);
@@ -47,12 +36,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  printf("Conectando...");
   if (connect(socket_peer, peer_address->ai_addr, peer_address->ai_addrlen)) {
     fprintf(stderr, "connect() failed. (%d)\n", errno);
     return 1;
   }
   freeaddrinfo(peer_address);
+
   int status = // le agrega a los flags actuales el nonblock
       fcntl(socket_peer, F_SETFL, fcntl(socket_peer, F_GETFL, 0) | O_NONBLOCK);
   if (status == -1) {
@@ -60,16 +49,13 @@ int main(int argc, char *argv[]) {
   }
 
   printf("Conectado.\n");
-  printf("Para enviar data, ingresá texto seguido de enter.\n");
 
-  printf("Creando instancia de epoll...\n");
   int epoll_fd = epoll_create1(0);
   if (epoll_fd == -1) {
     perror("epoll_create1");
     return 1;
   }
 
-  printf("Agregando el socket y stdin al epoll...\n");
   struct epoll_event ev;
   ev.events = EPOLLIN | EPOLLET; // lectura + edge-triggered
 
@@ -102,6 +88,9 @@ int main(int argc, char *argv[]) {
         if (bytes_received == -1) {
           perror("recv");
           exit(EXIT_FAILURE);
+        } else if (bytes_received == 0) {
+          fprintf(stderr, "El servidor cerró la conexión.\n");
+          exit(0);
         }
         printf("El servidor respondió: %.*s\n", bytes_received, read);
       } else if (events[n].data.fd == 0) { // fd 0 = STDIN
@@ -109,7 +98,10 @@ int main(int argc, char *argv[]) {
         if (!fgets(read, 4096, stdin))
           break;
         int bytes_sent = send(socket_peer, read, strlen(read), 0);
-        printf("Enviados %d bytes.\n", bytes_sent);
+        if (bytes_sent == -1) {
+          perror("send");
+          exit(EXIT_FAILURE);
+        }
       }
     }
   }
