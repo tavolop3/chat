@@ -13,8 +13,29 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MAX_EVENTS 10
-#define MAX_QUEUE 10
+#define MAX_EVENTS 100
+#define MAX_QUEUE 128
+
+void add_fd(int **fds, int *count, int *capacity, int fd) {
+  if (*count == *capacity) {
+    *capacity = (*capacity == 0) ? 10 : (*capacity * 2);
+    *fds = realloc(*fds, (*capacity) * sizeof(int));
+    if (!*fds) {
+      perror("realloc");
+      exit(EXIT_FAILURE);
+    }
+  }
+  (*fds)[(*count)++] = fd;
+}
+
+void remove_fd(int *fds, int *count, int fd) {
+  for (int i = 0; i < *count; ++i) {
+    if (fds[i] == fd) {
+      fds[i] = fds[--(*count)];
+      break;
+    }
+  }
+}
 
 int main(int argc, char *argv[]) {
   struct addrinfo hints;
@@ -65,7 +86,10 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
   int max_socket = socket_listen;
-  printf("socket_listen:%d\n", socket_listen);
+  // array dinamico, podria ser un struct mejor
+  int *fds = NULL;
+  int fds_count = 0;
+  int fds_capacity = 0;
 
   int nfds;
   struct epoll_event events[MAX_EVENTS];
@@ -101,27 +125,27 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
 
+        add_fd(&fds, &fds_count, &fds_capacity, socket_client);
+
         if (socket_client > max_socket)
           max_socket = socket_client;
-        printf("max_socket: %d\n", max_socket);
 
         printf("Cliente conectado.\n");
       } else {
-        printf("al menos entro al else\n");
         char request[1024];
         int bytes_received = recv(events[n].data.fd, request, 1024, 0);
         if (bytes_received < 1) {
-          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, n, 0);
-          close(n);
+          printf("Cliente desconectado.\n");
+          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[n].data.fd, 0);
+          close(events[n].data.fd);
+          remove_fd(fds, &fds_count, events[n].data.fd);
           continue;
         }
         printf("%.*s", bytes_received, request);
 
-        // fd 0,1,2, 3, 4 = stdin, stdout, stderr, socket_listen, epoll
-        for (int i = 5; i <= max_socket; ++i) {
-          printf("envio a %d\n", i);
-          if (i != n) {
-            int bytes_sent = send(i, request, bytes_received, 0);
+        for (int i = 0; i <= fds_count; ++i) {
+          if (fds[i] != events[n].data.fd) {
+            int bytes_sent = send(fds[i], request, bytes_received, 0);
             // if (bytes_sent < 1) {
             //   printf("lo elimino\n");
             //   int ret =
@@ -133,7 +157,6 @@ int main(int argc, char *argv[]) {
             //   close(n);
             //   continue;
             // }
-            printf("che paso eh q raro\n");
           }
         }
       }
