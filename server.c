@@ -145,18 +145,7 @@ int main(int argc, char *argv[]) {
 
         for (int i = 0; i <= fds_count; ++i) {
           if (fds[i] != events[n].data.fd) {
-            int bytes_sent = send(fds[i], request, bytes_received, 0);
-            // if (bytes_sent < 1) {
-            //   printf("lo elimino\n");
-            //   int ret =
-            //       epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[n].data.fd, 0);
-            //   if (ret == -1) {
-            //     perror("epoll_ctl: del");
-            //     exit(EXIT_FAILURE);
-            //   }
-            //   close(n);
-            //   continue;
-            // }
+            send(fds[i], request, bytes_received, 0);
           }
         }
       }
