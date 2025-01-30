@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
         if (socket_client > max_socket)
           max_socket = socket_client;
 
-        printf("Cliente conectado.\n");
+        printf("Cliente con fd %d conectado.\n", socket_client);
       } else {
         char request[1024];
         int bytes_received = recv(events[n].data.fd, request, 1024, 0);

@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "El servidor cerró la conexión.\n");
           exit(0);
         }
-        printf("El servidor respondió: %.*s\n", bytes_received, read);
+        printf("x: %.*s\n", bytes_received, read);
       } else if (events[n].data.fd == 0) { // fd 0 = STDIN
         char read[4096];
         if (!fgets(read, 4096, stdin))
