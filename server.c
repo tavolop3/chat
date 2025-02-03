@@ -69,12 +69,6 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  /*if (setsockopt(socket_listen, SOL_SOCKET, SO_REUSEPORT, &(int){1},*/
-  /*               sizeof(int)) < 0) {*/
-  /*  perror("setsockopt: SO_REUSEPORT failed");*/
-  /*  exit(EXIT_FAILURE);*/
-  /*}*/
-  /**/
   if (bind(socket_listen, bind_address->ai_addr, bind_address->ai_addrlen)) {
     fprintf(stderr, "bind() failed (%d)\n", errno);
     return 1;
