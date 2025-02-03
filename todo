@@ -1,3 +1,5 @@
 tema send: del lado del servidor hay que tener algun mecanismo para asegurar que se envien los datos, o volver a intentarlo o desconectarlo si no puede manejarlo
 
 tema test: hay que tener alguna prueba para chequear si el servidor es realmente capaz de manejar multiples solicitudes a la vez
+
+historial: guardar el historial en un archivo, la idea es que despues se genere un archivo por canal

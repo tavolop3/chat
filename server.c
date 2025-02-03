@@ -1,3 +1,4 @@
+#include <asm-generic/socket.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +62,19 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  // reuso de direccion por si queda un server finalizando
+  if (setsockopt(socket_listen, SOL_SOCKET, SO_REUSEADDR, &(int){1},
+                 sizeof(int)) < 0) {
+    perror("setsockopt: SO_REUSEADDR");
+    exit(EXIT_FAILURE);
+  }
+
+  /*if (setsockopt(socket_listen, SOL_SOCKET, SO_REUSEPORT, &(int){1},*/
+  /*               sizeof(int)) < 0) {*/
+  /*  perror("setsockopt: SO_REUSEPORT failed");*/
+  /*  exit(EXIT_FAILURE);*/
+  /*}*/
+  /**/
   if (bind(socket_listen, bind_address->ai_addr, bind_address->ai_addrlen)) {
     fprintf(stderr, "bind() failed (%d)\n", errno);
     return 1;
