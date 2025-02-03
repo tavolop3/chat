@@ -3,3 +3,37 @@ tema send: del lado del servidor hay que tener algun mecanismo para asegurar que
 tema test: hay que tener alguna prueba para chequear si el servidor es realmente capaz de manejar multiples solicitudes a la vez
 
 historial: guardar el historial en un archivo, la idea es que despues se genere un archivo por canal
+
+/*
+ * The `recv()` and `send()` functions do not guarantee to send/recv all
+ * data (see [man recv][1], [man send][2])
+ *
+ * You need to implement your own `send_all()` and `recv_all()`,
+ * something like
+ */
+
+ bool send_all(int socket, void *buffer, size_t length)
+ {
+     char *ptr = (char*) buffer;
+     while (length > 0)
+     {
+         int i = send(socket, ptr, length);
+         if (i < 1) return false;
+         ptr += i;
+         length -= i;
+     }
+     return true;
+ }
+
+/*
+ * The following guide may help you [Beej's Guide to Network
+ * Programming][3]
+ *
+ *   [1]: http:linux.die.net/man/2/recv
+ *   [2]: http:linux.die.net/man/2/send
+ *   [3]: http:beej.us/guide/bgnet/
+ *
+ * [Jah] [so/q/13479760] [cc by-sa 3.0]
+ */
+
+

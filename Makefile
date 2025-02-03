@@ -35,11 +35,11 @@ rerun: clean all
 	tmux send-keys C-c  # Enviar CTRL+C para matar el servidor (si está corriendo)
 	sleep 0.1  # Esperar 2 segundos para asegurarse de que el servidor se detenga
 
-	# Iniciar de nuevo el servidor
 	tmux send-keys "./server.o" C-m
 
-	# Iniciar los clientes de nuevo
 	tmux send-keys -t 2 "./client.o 127.0.0.1 8080" C-m
 	tmux send-keys -t 3 "./client.o 127.0.0.1 8080" C-m
 	tmux send-keys -t 4 "./client.o 127.0.0.1 8080" C-m
 	tmux send-keys -t 5 "./client.o 127.0.0.1 8080" C-m
+
+	tmux select-pane -t 2 # Por comodidad para escribir en el cliente

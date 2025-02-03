@@ -17,6 +17,18 @@
 #define MAX_EVENTS 100
 #define MAX_QUEUE 128
 
+int send_all(int socket, void *buffer, size_t length, int flags) {
+  char *ptr = (char *)buffer;
+  while (length > 0) {
+    int i = send(socket, ptr, length, flags);
+    if (i == -1)
+      return -1;
+    ptr += i;
+    length -= i;
+  }
+  return 0;
+}
+
 void add_fd(int **fds, int *count, int *capacity, int fd) {
   if (*count == *capacity) {
     *capacity = (*capacity == 0) ? 10 : (*capacity * 2);
@@ -27,6 +39,7 @@ void add_fd(int **fds, int *count, int *capacity, int fd) {
     }
   }
   (*fds)[(*count)++] = fd;
+  printf("agrego a la lista el fd = %d\n", fd);
 }
 
 void remove_fd(int *fds, int *count, int fd) {
@@ -151,9 +164,13 @@ int main(int argc, char *argv[]) {
         }
         printf("%.*s", bytes_received, request);
 
-        for (int i = 0; i <= fds_count; ++i) {
+        for (int i = 0; i < fds_count; ++i) {
           if (fds[i] != events[n].data.fd) {
-            send(fds[i], request, bytes_received, 0);
+            int res = send_all(fds[i], request, bytes_received, 0);
+            if (res == -1) {
+              perror("send_all: cli message");
+              exit(EXIT_FAILURE);
+            }
           }
         }
       }
