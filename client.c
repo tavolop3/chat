@@ -94,8 +94,8 @@ int main(int argc, char *argv[]) {
         }
         printf("x: %.*s\n", bytes_received, read);
       } else if (events[n].data.fd == 0) { // fd 0 = STDIN
-        char read[4096];
-        if (!fgets(read, 4096, stdin))
+        char read[1024];
+        if (!fgets(read, 1024, stdin))
           break;
         int bytes_sent = send(socket_peer, read, strlen(read), 0);
         if (bytes_sent == -1) {

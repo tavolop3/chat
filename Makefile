@@ -43,3 +43,19 @@ rerun: clean all
 	tmux send-keys -t 5 "./client.o 127.0.0.1 8080" C-m
 
 	tmux select-pane -t 2 # Por comodidad para escribir en el cliente
+
+test: clean all
+	tmux select-window -t testeo  # Asegurar que estamos en la ventana 'testeo'
+	tmux select-pane -t 1  # Seleccionar el pane 0 (servidor)
+	tmux send-keys C-c  # Enviar CTRL+C para matar el servidor (si está corriendo)
+	sleep 0.1  # Esperar 2 segundos para asegurarse de que el servidor se detenga
+
+	tmux send-keys "./server.o" C-m
+
+	tmux send-keys -t 2 "python cli.py 0" C-m
+	tmux send-keys -t 3 "python cli.py 1" C-m
+	tmux send-keys -t 4 "python cli.py 2" C-m
+	tmux send-keys -t 5 "python cli.py 3" C-m
+
+	tmux select-pane -t 2 # Por comodidad para escribir en el cliente
+
