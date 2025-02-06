@@ -1,18 +1,20 @@
-#include <asm-generic/socket.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
 
 // socket libraries
-#include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <asm-generic/socket.h>
+
+#include "lib/darray.h"
 
 #define MAX_EVENTS 100
 #define MAX_QUEUE 128
@@ -27,28 +29,6 @@ int send_all(int socket, void *buffer, size_t length, int flags) {
     length -= i;
   }
   return 0;
-}
-
-void add_fd(int **fds, int *count, int *capacity, int fd) {
-  if (*count == *capacity) {
-    *capacity = (*capacity == 0) ? 10 : (*capacity * 2);
-    *fds = realloc(*fds, (*capacity) * sizeof(int));
-    if (!*fds) {
-      perror("realloc");
-      exit(EXIT_FAILURE);
-    }
-  }
-  (*fds)[(*count)++] = fd;
-  printf("agrego a la lista el fd = %d\n", fd);
-}
-
-void remove_fd(int *fds, int *count, int fd) {
-  for (int i = 0; i < *count; ++i) {
-    if (fds[i] == fd) {
-      fds[i] = fds[--(*count)];
-      break;
-    }
-  }
 }
 
 int main(int argc, char *argv[]) {
@@ -107,7 +87,8 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
   int max_socket = socket_listen;
-  // array dinamico, podria ser un struct mejor
+
+  // darray
   int *fds = NULL;
   int fds_count = 0;
   int fds_capacity = 0;

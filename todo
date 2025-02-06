@@ -3,3 +3,5 @@ tema send: del lado del servidor hay que tener algun mecanismo para asegurar que
 tema test: hay que tener alguna prueba para chequear si el servidor es realmente capaz de manejar multiples solicitudes a la vez
 
 historial: guardar el historial en un archivo, la idea es que despues se genere un archivo por canal
+
+nombre: asociar un nombre a cada fd conectado, mejor si es pasado como parametro al cliente y que este lo mande o algo asi

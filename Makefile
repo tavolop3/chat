@@ -2,16 +2,21 @@ EXEC = client server
 
 CFLAGS=-Wall -g
 
-all: client server
+SCC = server.c lib/darray.c
+SOBJ = server.o
 
-client:
+OBJ = $(SOBJ) client.o
+
+all: $(EXEC) 
+
+client: client.o
 	gcc $(CFLAGS) client.c -o client.o
 
-server:
-	gcc $(CFLAGS) server.c -o server.o
+server: $(SOBJ)
+	gcc $(CFLAGS) $(SCC) -o $(SOBJ)
 
 clean:
-	rm client.o server.o
+	rm $(OBJ)
 
 run: clean all
 	# Verifica si la ventana de tmux llamada 'testeo' existe y la mata
