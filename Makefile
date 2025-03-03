@@ -57,10 +57,10 @@ test: clean all
 
 	tmux send-keys "./server.o" C-m
 
-	tmux send-keys -t 2 "python test_cli.py 0" C-m
-	tmux send-keys -t 3 "python test_cli.py 1" C-m
-	tmux send-keys -t 4 "python test_cli.py 2" C-m
-	tmux send-keys -t 5 "python test_cli.py 3" C-m
+	tmux send-keys -t 2 "python tests/test_cli.py 0" C-m
+	tmux send-keys -t 3 "python tests/test_cli.py 1" C-m
+	tmux send-keys -t 4 "python tests/test_cli.py 2" C-m
+	tmux send-keys -t 5 "python tests/test_cli.py 3" C-m
 
 	tmux select-pane -t 2 # Por comodidad para escribir en el cliente
 

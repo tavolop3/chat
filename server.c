@@ -89,10 +89,7 @@ int main(int argc, char *argv[]) {
   int max_socket = socket_listen;
 
   // darray
-  int *fds = NULL;
-  int fds_count = 0;
-  int fds_capacity = 0;
-
+  int *fds = array(int, &default_allocator);
   int nfds;
   struct epoll_event events[MAX_EVENTS];
   for (;;) {
@@ -127,7 +124,7 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
 
-        add_fd(&fds, &fds_count, &fds_capacity, socket_client);
+        array_append(fds, socket_client);
 
         if (socket_client > max_socket)
           max_socket = socket_client;
@@ -140,12 +137,12 @@ int main(int argc, char *argv[]) {
           printf("Cliente desconectado.\n");
           epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[n].data.fd, 0);
           close(events[n].data.fd);
-          remove_fd(fds, &fds_count, events[n].data.fd);
+          array_remove_first(fds, events[n].data.fd);
           continue;
         }
         printf("%.*s", bytes_received, request);
 
-        for (int i = 0; i < fds_count; ++i) {
+        for (int i = 0; i < array_length(fds); ++i) {
           if (fds[i] != events[n].data.fd) {
             int res = send_all(fds[i], request, bytes_received, 0);
             if (res == -1) {
