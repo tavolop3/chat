@@ -19,18 +19,6 @@
 #define MAX_EVENTS 100
 #define MAX_QUEUE 128
 
-int send_all(int socket, void *buffer, size_t length, int flags) {
-  char *ptr = (char *)buffer;
-  while (length > 0) {
-    int i = send(socket, ptr, length, flags);
-    if (i == -1)
-      return -1;
-    ptr += i;
-    length -= i;
-  }
-  return 0;
-}
-
 int main(int argc, char *argv[]) {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); // inicializa en 0
@@ -131,6 +119,7 @@ int main(int argc, char *argv[]) {
 
         printf("Cliente con fd %d conectado.\n", socket_client);
       } else {
+        // client sending data
         char request[1024];
         int bytes_received = recv(events[n].data.fd, request, 1024, 0);
         if (bytes_received < 1) {
@@ -142,15 +131,21 @@ int main(int argc, char *argv[]) {
         }
         printf("%.*s", bytes_received, request);
 
+        // broadcast to all fds except sender
         for (int i = 0; i < array_length(fds); ++i) {
           if (fds[i] != events[n].data.fd) {
-            int res = send_all(fds[i], request, bytes_received, 0);
-            if (res == -1) {
-              perror("send_all: cli message");
-              exit(EXIT_FAILURE);
+            int length = bytes_received;
+            while (length > 0) {
+              int res = send(fds[i], request, length, 0);
+              if (res == -1) {
+                printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",fds[i], errno);
+                break;
+              }
+              length -= res;
             }
           }
         }
+
       }
     }
   }
