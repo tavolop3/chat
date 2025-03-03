@@ -2,7 +2,7 @@ EXEC = client server
 
 CFLAGS=-Wall -g
 
-SCC = server.c lib/darray.c
+SCC = server.c
 SOBJ = server.o
 
 OBJ = $(SOBJ) client.o
