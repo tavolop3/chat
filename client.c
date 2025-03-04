@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #define MAX_EVENTS 10
+#define MAX_LEN_USERNAME 10
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -19,13 +20,20 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  char username[MAX_LEN_USERNAME];
+  memcpy(username, argv[1], MAX_LEN_USERNAME);
+  if (strnlen(username, MAX_LEN_USERNAME) == MAX_LEN_USERNAME) {
+    fprintf(stderr, "username must be at most %d characters\n", MAX_LEN_USERNAME);
+    return 1;
+  } 
+
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_socktype = SOCK_STREAM; // tcp
   struct addrinfo *peer_address;
   if (getaddrinfo("127.0.0.1", "8080", &hints, &peer_address)) { // 1
     fprintf(stderr, "getaddrinfo() failed. (%d)\n", errno);
-    return 1;
+    exit(EXIT_FAILURE);
   }
 
   int socket_peer;
@@ -33,12 +41,12 @@ int main(int argc, char *argv[]) {
                        peer_address->ai_protocol);
   if (socket_peer < 0) {
     fprintf(stderr, "socket() failed. (%d)\n", errno);
-    return 1;
+    exit(EXIT_FAILURE);
   }
 
   if (connect(socket_peer, peer_address->ai_addr, peer_address->ai_addrlen)) {
     fprintf(stderr, "connect() failed. (%d)\n", errno);
-    return 1;
+    exit(EXIT_FAILURE);
   }
   freeaddrinfo(peer_address);
 
@@ -46,6 +54,7 @@ int main(int argc, char *argv[]) {
       fcntl(socket_peer, F_SETFL, fcntl(socket_peer, F_GETFL, 0) | O_NONBLOCK);
   if (status == -1) {
     perror("fcntl: non-block");
+    exit(EXIT_FAILURE);
   }
 
   printf("Conectado.\n");
@@ -53,7 +62,7 @@ int main(int argc, char *argv[]) {
   int epoll_fd = epoll_create1(0);
   if (epoll_fd == -1) {
     perror("epoll_create1");
-    return 1;
+    exit(EXIT_FAILURE);
   }
 
   struct epoll_event ev;
