@@ -132,14 +132,4 @@ static inline void *array_ensure_capacity(void *a, size_t item_count, size_t ite
     }                                         \
 } while(0)
 
-#define array_remove_first(a, value) do {     \
-  Array_Header *h = array_header(a);          \
-  for(size_t i=0; i < h->length; i++) { \
-    if (a[i] == value) {                      \
-      array_remove(a, i);                     \
-      break;    \
-    } \
-  } \
-} while(0)
-
 #endif // DYNAMIC_ARRAY_H

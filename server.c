@@ -20,6 +20,11 @@
 #define MAX_QUEUE 128
 #define MAX_LEN_USERNAME 10
 
+typedef struct {
+  int fd;
+  char usrname[MAX_LEN_USERNAME];
+} User;
+
 int main(int argc, char *argv[]) {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); // inicializa en 0
@@ -78,7 +83,7 @@ int main(int argc, char *argv[]) {
   int max_socket = socket_listen;
 
   // darray
-  int *fds = array(int, &default_allocator);
+  User *users = array(User, &default_allocator);
   int nfds;
   struct epoll_event events[MAX_EVENTS];
   for (;;) {
@@ -113,7 +118,8 @@ int main(int argc, char *argv[]) {
           exit(EXIT_FAILURE);
         }
 
-        array_append(fds, socket_client);
+        User new_usr = {socket_client, ""};
+        array_append(users, new_usr);
 
         if (socket_client > max_socket)
           max_socket = socket_client;
@@ -127,7 +133,11 @@ int main(int argc, char *argv[]) {
           printf("Cliente desconectado.\n");
           epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[n].data.fd, 0);
           close(events[n].data.fd);
-          array_remove_first(fds, events[n].data.fd);
+          for (int i = 0; i < array_length(users); ++i) {
+            if (users[i].fd == events[n].data.fd) {
+              array_remove(users, i);
+            }
+          }
           continue;
         }
 
@@ -141,14 +151,14 @@ int main(int argc, char *argv[]) {
             break; 
           }          
         } else {
-          // broadcast to all fds except sender
-          for (int i = 0; i < array_length(fds); ++i) {
-            if (fds[i] != events[n].data.fd) {
+          // broadcast to all users except sender
+          for (int i = 0; i < array_length(users); ++i) {
+            if (users[i].fd != events[n].data.fd) {
               int length = bytes_received;
               while (length > 0) {
-                int res = send(fds[i], request, length, 0);
+                int res = send(users[i].fd, request, length, 0);
                 if (res == -1) {
-                  printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",fds[i], errno);
+                  printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",users[i].fd, errno);
                   break;
                 }
                 length -= res;
