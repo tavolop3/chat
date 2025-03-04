@@ -50,6 +50,16 @@ int main(int argc, char *argv[]) {
   }
   freeaddrinfo(peer_address);
 
+  // envio el username primero
+  size_t len = strlen(username) + 4; // "/u "+1 ver strcat
+  char buff[len];
+  snprintf(buff, len, "/u %s", username);
+  int bytes_sent = send(socket_peer, buff, len, 0);
+  if (bytes_sent == -1) {
+    perror("send");
+    exit(EXIT_FAILURE);
+  }
+
   int status = // le agrega a los flags actuales el nonblock
       fcntl(socket_peer, F_SETFL, fcntl(socket_peer, F_GETFL, 0) | O_NONBLOCK);
   if (status == -1) {

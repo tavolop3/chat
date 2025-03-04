@@ -18,6 +18,7 @@
 
 #define MAX_EVENTS 100
 #define MAX_QUEUE 128
+#define MAX_LEN_USERNAME 10
 
 int main(int argc, char *argv[]) {
   struct addrinfo hints;
@@ -117,7 +118,7 @@ int main(int argc, char *argv[]) {
         if (socket_client > max_socket)
           max_socket = socket_client;
 
-        printf("Cliente con fd %d conectado.\n", socket_client);
+        /*printf("Cliente con fd %d conectado.\n", socket_client);*/
       } else {
         // client sending data
         char request[1024];
@@ -129,21 +130,32 @@ int main(int argc, char *argv[]) {
           array_remove_first(fds, events[n].data.fd);
           continue;
         }
-        printf("%.*s", bytes_received, request);
 
-        // broadcast to all fds except sender
-        for (int i = 0; i < array_length(fds); ++i) {
-          if (fds[i] != events[n].data.fd) {
-            int length = bytes_received;
-            while (length > 0) {
-              int res = send(fds[i], request, length, 0);
-              if (res == -1) {
-                printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",fds[i], errno);
-                break;
+        //comando
+        if (request[0] == '/') {
+          switch (request[1]) {
+            case 'u': 
+              char username[MAX_LEN_USERNAME+3];
+              strcpy(username, request); // req[3..max] /u username
+              printf("%s\n", username);
+            break; 
+          }          
+        } else {
+          // broadcast to all fds except sender
+          for (int i = 0; i < array_length(fds); ++i) {
+            if (fds[i] != events[n].data.fd) {
+              int length = bytes_received;
+              while (length > 0) {
+                int res = send(fds[i], request, length, 0);
+                if (res == -1) {
+                  printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",fds[i], errno);
+                  break;
+                }
+                length -= res;
               }
-              length -= res;
             }
           }
+          printf("%.*s", bytes_received, request);
         }
 
       }

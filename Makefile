@@ -29,7 +29,7 @@ run: clean all
 		split-window -h \;\
 		select-pane -t 2 \;\
 		split-window -h \;\
-		send-keys -t 2 "./client.o tao" C-m \;\
+		send-keys -t 2 "./client.o tao " C-m \;\
 		send-keys -t 3 "./client.o sancho" C-m \;\
 		send-keys -t 4 "./client.o agus" C-m \;\
 		send-keys -t 5 "./client.o garga" C-m
