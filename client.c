@@ -14,8 +14,8 @@
 #define MAX_EVENTS 10
 
 int main(int argc, char *argv[]) {
-  if (argc != 3) {
-    fprintf(stderr, "usage: tcp_client hostname port\n");
+  if (argc != 2) {
+    fprintf(stderr, "usage: username\n");
     return 1;
   }
 
@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
   memset(&hints, 0, sizeof(hints));
   hints.ai_socktype = SOCK_STREAM; // tcp
   struct addrinfo *peer_address;
-  if (getaddrinfo(argv[1], argv[2], &hints, &peer_address)) { // 1
+  if (getaddrinfo("127.0.0.1", "8080", &hints, &peer_address)) { // 1
     fprintf(stderr, "getaddrinfo() failed. (%d)\n", errno);
     return 1;
   }

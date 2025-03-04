@@ -29,10 +29,10 @@ run: clean all
 		split-window -h \;\
 		select-pane -t 2 \;\
 		split-window -h \;\
-		send-keys -t 2 "./client.o 127.0.0.1 8080" C-m \;\
-		send-keys -t 3 "./client.o 127.0.0.1 8080" C-m \;\
-		send-keys -t 4 "./client.o 127.0.0.1 8080" C-m \;\
-		send-keys -t 5 "./client.o 127.0.0.1 8080" C-m
+		send-keys -t 2 "./client.o tao" C-m \;\
+		send-keys -t 3 "./client.o sancho" C-m \;\
+		send-keys -t 4 "./client.o agus" C-m \;\
+		send-keys -t 5 "./client.o garga" C-m
 
 rerun: clean all
 	tmux select-window -t testeo  # Asegurar que estamos en la ventana 'testeo'
@@ -42,10 +42,10 @@ rerun: clean all
 
 	tmux send-keys "./server.o" C-m
 
-	tmux send-keys -t 2 "./client.o 127.0.0.1 8080" C-m
-	tmux send-keys -t 3 "./client.o 127.0.0.1 8080" C-m
-	tmux send-keys -t 4 "./client.o 127.0.0.1 8080" C-m
-	tmux send-keys -t 5 "./client.o 127.0.0.1 8080" C-m
+	tmux send-keys -t 2 "./client.o tao" C-m
+	tmux send-keys -t 3 "./client.o sancho" C-m
+	tmux send-keys -t 4 "./client.o agus" C-m
+	tmux send-keys -t 5 "./client.o garga" C-m
 
 	tmux select-pane -t 2 # Por comodidad para escribir en el cliente
 
