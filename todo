@@ -7,3 +7,5 @@ historial: guardar el historial en un archivo, la idea es que despues se genere 
 nombre: asociar un nombre a cada fd conectado, mejor si es pasado como parametro al cliente y que este lo mande o algo asi
 
 memoria: hacer una arena?
+
+performance: hashmap fd -> usuario para las operaciones dentro de epoll ¿?

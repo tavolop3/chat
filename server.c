@@ -145,10 +145,22 @@ int main(int argc, char *argv[]) {
         if (request[0] == '/') {
           switch (request[1]) {
             case 'u': 
-              char username[MAX_LEN_USERNAME+3];
-              strcpy(username, request); // req[3..max] /u username
-              printf("%s\n", username);
-            break; 
+              char usrname[MAX_LEN_USERNAME+3];
+              strcpy(usrname, request+3); // req[3..max] /u username
+
+              for (int i = 0; i < array_length(users); ++i) {
+                if (users[i].fd == events[n].data.fd) {
+                  strncpy(users[i].usrname, usrname, MAX_LEN_USERNAME);
+                }
+              }
+              break;
+            case 'p':
+              printf("---------- Usuarios -----------\n");
+              for (int i = 0; i < array_length(users); ++i) {
+                printf("usuario[%d].fd=%d\n", i, users[i].fd);
+                printf("usuario[%d].usrname=%s\n", i, users[i].usrname);
+              }
+              break;
           }          
         } else {
           // broadcast to all users except sender
@@ -163,9 +175,10 @@ int main(int argc, char *argv[]) {
                 }
                 length -= res;
               }
+            } else {
+              printf("%s:%.*s", users[i].usrname,bytes_received, request);
             }
           }
-          printf("%.*s", bytes_received, request);
         }
 
       }
