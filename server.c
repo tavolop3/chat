@@ -151,32 +151,45 @@ int main(int argc, char *argv[]) {
               for (int i = 0; i < array_length(users); ++i) {
                 if (users[i].fd == events[n].data.fd) {
                   strncpy(users[i].usrname, usrname, MAX_LEN_USERNAME);
+                  printf("Se conectó %s\n", usrname);
+                  break;
                 }
               }
               break;
             case 'p':
               printf("---------- Usuarios -----------\n");
-              for (int i = 0; i < array_length(users); ++i) {
-                printf("usuario[%d].fd=%d\n", i, users[i].fd);
-                printf("usuario[%d].usrname=%s\n", i, users[i].usrname);
+              for (size_t i = 0; i < array_length(users); ++i) {
+                printf("usuario[%zu].fd=%d\n", i, users[i].fd);
+                printf("usuario[%zu].usrname=%s\n", i, users[i].usrname);
               }
               break;
           }          
         } else {
           // broadcast to all users except sender
-          for (int i = 0; i < array_length(users); ++i) {
+          int len = MAX_LEN_USERNAME + 2 + strlen(request) + 1; // usrname: msg
+          char response[len];
+          char usrname[MAX_LEN_USERNAME];
+          // busca el usrname, buscar esto y guardarlo y su indice pero al principio pq desp se usa
+          for (size_t i = 0; i < array_length(users); ++i) {
+            if (users[i].fd == events[n].data.fd) {
+              strcpy(usrname, users[i].usrname);
+            } 
+          }
+          snprintf(response, len, "%s: %s", usrname, request);
+
+          for (size_t i = 0; i < array_length(users); ++i) {
             if (users[i].fd != events[n].data.fd) {
-              int length = bytes_received;
-              while (length > 0) {
-                int res = send(users[i].fd, request, length, 0);
+              int pending_length = len;
+              while (pending_length > 0) {
+                int res = send(users[i].fd, response, pending_length, 0);
                 if (res == -1) {
                   printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",users[i].fd, errno);
                   break;
                 }
-                length -= res;
+                pending_length -= res;
               }
             } else {
-              printf("%s:%.*s", users[i].usrname,bytes_received, request);
+              printf("%s:%.*s", users[i].usrname, len, request);
             }
           }
         }
