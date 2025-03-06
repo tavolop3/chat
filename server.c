@@ -82,7 +82,6 @@ int main(int argc, char *argv[]) {
   }
   int max_socket = socket_listen;
 
-  // darray
   User *users = array(User, &default_allocator);
   int nfds;
   struct epoll_event events[MAX_EVENTS];
@@ -94,7 +93,8 @@ int main(int argc, char *argv[]) {
     }
 
     for (int n = 0; n < nfds; ++n) {
-      if (events[n].data.fd == socket_listen) {
+      int event_fd = events[n].data.fd; 
+      if (event_fd == socket_listen) {
         struct sockaddr_storage client_address;
         socklen_t client_len = sizeof(client_address);
         int socket_client = accept(
@@ -127,34 +127,32 @@ int main(int argc, char *argv[]) {
         /*printf("Cliente con fd %d conectado.\n", socket_client);*/
       } else {
         // client sending data
+        char usrname[MAX_LEN_USERNAME] = "";
+        int usr_index = 0; 
+        for (size_t i = 0; i < array_length(users); ++i) {
+          if (users[i].fd == event_fd) {
+            strcpy(usrname, users[i].usrname);
+            usr_index = i;
+          }
+        }
         char request[1024];
-        int bytes_received = recv(events[n].data.fd, request, 1024, 0);
+        int bytes_received = recv(event_fd, request, 1024, 0);
         if (bytes_received < 1) {
           printf("Cliente desconectado.\n");
-          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[n].data.fd, 0);
-          close(events[n].data.fd);
-          for (int i = 0; i < array_length(users); ++i) {
-            if (users[i].fd == events[n].data.fd) {
-              array_remove(users, i);
-            }
-          }
+          epoll_ctl(epoll_fd, EPOLL_CTL_DEL, event_fd, 0);
+          close(event_fd);
+          array_remove(users, usr_index);
           continue;
         }
 
         //comando
         if (request[0] == '/') {
           switch (request[1]) {
+            // /u username asigna el username al usuario
             case 'u': 
-              char usrname[MAX_LEN_USERNAME+3];
               strcpy(usrname, request+3); // req[3..max] /u username
-
-              for (int i = 0; i < array_length(users); ++i) {
-                if (users[i].fd == events[n].data.fd) {
-                  strncpy(users[i].usrname, usrname, MAX_LEN_USERNAME);
-                  printf("Se conectó %s\n", usrname);
-                  break;
-                }
-              }
+              strncpy(users[usr_index].usrname, usrname, MAX_LEN_USERNAME);
+              printf("Se conectó %s\n", usrname);
               break;
             case 'p':
               printf("---------- Usuarios -----------\n");
@@ -168,17 +166,10 @@ int main(int argc, char *argv[]) {
           // broadcast to all users except sender
           int len = MAX_LEN_USERNAME + 2 + strlen(request) + 1; // usrname: msg
           char response[len];
-          char usrname[MAX_LEN_USERNAME];
-          // busca el usrname, buscar esto y guardarlo y su indice pero al principio pq desp se usa
-          for (size_t i = 0; i < array_length(users); ++i) {
-            if (users[i].fd == events[n].data.fd) {
-              strcpy(usrname, users[i].usrname);
-            } 
-          }
           snprintf(response, len, "%s: %s", usrname, request);
 
           for (size_t i = 0; i < array_length(users); ++i) {
-            if (users[i].fd != events[n].data.fd) {
+            if (users[i].fd != event_fd) {
               int pending_length = len;
               while (pending_length > 0) {
                 int res = send(users[i].fd, response, pending_length, 0);
@@ -189,7 +180,7 @@ int main(int argc, char *argv[]) {
                 pending_length -= res;
               }
             } else {
-              printf("%s:%.*s", users[i].usrname, len, request);
+              printf("%s:%.*s", usrname, len, request);
             }
           }
         }
