@@ -25,7 +25,7 @@ typedef struct {
   char usrname[MAX_LEN_USERNAME];
 } User;
 
-int main(int argc, char *argv[]) {
+int socket_init() {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); // inicializa en 0
   hints.ai_family = AF_INET;        // ipv4
@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 
   struct addrinfo *bind_address;
   if (getaddrinfo(0, "8080", &hints, &bind_address)) {
-    fprintf(stderr, "getaddrinfo() failed. (%d)\n", errno);
+    perror("getaddrinfo() failed");
     return 1;
   }
   // getaddrinfo devuelve una dir compatible con bind, esta
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
   socket_listen = socket(bind_address->ai_family, bind_address->ai_socktype,
                          bind_address->ai_protocol);
   if (socket_listen < 0) {
-    fprintf(stderr, "socket() failed. (%d)\n", errno);
+    perror("socket() failed");
     return 1;
   }
 
@@ -53,24 +53,28 @@ int main(int argc, char *argv[]) {
   if (setsockopt(socket_listen, SOL_SOCKET, SO_REUSEADDR, &(int){1},
                  sizeof(int)) < 0) {
     perror("setsockopt: SO_REUSEADDR");
-    exit(EXIT_FAILURE);
+    return 1;
   }
 
   if (bind(socket_listen, bind_address->ai_addr, bind_address->ai_addrlen)) {
-    fprintf(stderr, "bind() failed (%d)\n", errno);
+    perror("bind() failed");
     return 1;
   }
   freeaddrinfo(bind_address);
 
   if (listen(socket_listen, MAX_QUEUE)) {
-    fprintf(stderr, "listen() failed. (%d)\n", errno);
+    perror("listen() failed");
     return 1;
   }
 
+  return socket_listen;
+}
+
+int epoll_init(int socket_listen) {
   int epoll_fd = epoll_create1(0);
   if (epoll_fd == -1) {
     perror("epoll_create1");
-    return 1;
+    return -1;
   }
 
   struct epoll_event ev;
@@ -78,15 +82,30 @@ int main(int argc, char *argv[]) {
   ev.data.fd = socket_listen;
   if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket_listen, &ev) == -1) {
     perror("epoll_ctl: socket_listen");
+    return -1;
+  }
+
+  return epoll_fd;
+}
+
+int main(int argc, char *argv[]) {
+  int socket_listen = socket_init();
+  if(socket_listen < 0) {
+    perror("socket_init() failed");
     exit(EXIT_FAILURE);
   }
-  int max_socket = socket_listen;
 
+  int epoll_fd = epoll_init(socket_listen);
+  if (epoll_fd < 0) {
+    perror("epoll_init() failed");
+    exit(EXIT_FAILURE);
+  }
+
+  int max_socket = socket_listen;
   User *users = array(User, &default_allocator);
-  int nfds;
   struct epoll_event events[MAX_EVENTS];
   for (;;) {
-    nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+    int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
     if (nfds == -1) {
       perror("epoll_wait");
       exit(EXIT_FAILURE);
