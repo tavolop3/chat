@@ -37,6 +37,7 @@ int main(void) {
     Array_Header *header = array_header(numbers);
     size_t total_size = sizeof(Array_Header) + (header->capacity * sizeof(int));
     header->a->free(total_size, header, header->a->context);
+    numbers = null;
 
     return 0;
 }

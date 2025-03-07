@@ -130,6 +130,7 @@ int main(int argc, char *argv[]) {
           perror("fcntl: non-block");
         }
 
+        struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLET; // edge-triggered
         ev.data.fd = socket_client;
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket_client, &ev) == -1) {
@@ -207,5 +208,10 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+  Array_Header *h = array_header(users);  
+  size_t size = sizeof(Array_Header) + h->capacity * sizeof(User) + h->padding;  
+  h->a->free(size, h, h->a->context);
+  users = NULL;
+
   return 0;
 }
