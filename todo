@@ -4,6 +4,8 @@ performance: hashmap fd -> usuario para las operaciones dentro de epoll ¿?
 
 refactor: tomar el username una vez pq se usa en varios lados, usar una variable para data.fd
 
+agregar gracefully shutdown ctrl c
+
 funcionalidades:
 historial: guardar el historial en un archivo, la idea es que despues se genere un archivo por canal
 canales: varios canales donde se puedan conectar los usuarios con un id, un proceso o un hilo por canal?
