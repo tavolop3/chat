@@ -77,33 +77,17 @@ int socket_init() {
   return socket_listen;
 }
 
-int epoll_init(int socket) {
-  epoll_fd = epoll_create1(0);
-  if (epoll_fd == -1) {
-    perror("epoll_create1");
-    return -1;
-  }
-
-  struct epoll_event ev;
-  ev.events = EPOLLIN;
-  ev.data.fd = socket;
-  if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket, &ev) == -1) {
-    perror("epoll_ctl: socket");
-    return -1;
-  }
-
-  return epoll_fd;
-}
-
 void *handle_events(void *arg) {
   struct epoll_event events[MAX_EVENTS];
   for (;;) {
-    int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+    int nfds;
+    do {
+      nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+    } while (nfds < 0 && errno == EINTR);
     if (nfds == -1) {
       perror("epoll_wait");
       exit(EXIT_FAILURE);
     }
-    printf("estoy vivo\n");
 
     for (int n = 0; n < nfds; n++) {
       int event_fd = events[n].data.fd; 
@@ -121,7 +105,11 @@ void *handle_events(void *arg) {
       char request[MAX_LEN_MESSAGE];
       int bytes_received = recv(event_fd, request, MAX_LEN_MESSAGE, 0);
       if (bytes_received < 1) {
-        printf("Cliente desconectado.\n");
+        if (bytes_received == 0) { // graceful shutdown
+          printf("Cliente desconectado.\n");
+        } else { // -1 error
+          perror("recv: event_fd");
+        }
         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, event_fd, 0);
         close(event_fd);
         array_remove(users, usr_index);
@@ -171,8 +159,9 @@ void *handle_events(void *arg) {
       struct epoll_event ev;
       ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT; // edge-triggered, oneshot despierta solo a 1 thread
       ev.data.fd = event_fd;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event_fd, &ev) == -1) {
+      if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, event_fd, &ev) == -1) {
         //TODO: retornar bien
+        perror("se rompió epoll_ctl rearme de socket");
         return NULL;
       }
 
@@ -189,15 +178,15 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  int res = epoll_init(socket_listen);
-  if (res < 0) {
-    perror("epoll_init() failed");
+  epoll_fd = epoll_create1(0);
+  if (epoll_fd == -1) {
+    perror("epoll_create1");
     exit(EXIT_FAILURE);
   }
 
   pthread_t threads[MAX_THREADS];
   for (size_t i = 0; i < MAX_THREADS; i++) {
-    res = pthread_create(&threads[i], NULL, handle_events, NULL);
+    int res = pthread_create(&threads[i], NULL, handle_events, NULL);
     if(res < 0) {
       perror("pthread_create");
       exit(EXIT_FAILURE);
