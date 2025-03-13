@@ -77,6 +77,19 @@ int socket_init() {
   return socket_listen;
 }
 
+int send_all(int fd, void *buf, size_t len) {
+  char *ptr = (char *) buf;
+  while (len > 0) {
+    int res = send(fd, buf, len, 0);
+    if (res == -1) {
+      return -1;
+    }
+    ptr++;
+    len -= res;
+  }
+  return 0;
+}
+
 void *handle_events(void *arg) {
   struct epoll_event events[MAX_EVENTS];
   for (;;) {
@@ -93,9 +106,9 @@ void *handle_events(void *arg) {
       int event_fd = events[n].data.fd; 
 
       // get username and index
-      char usrname[MAX_LEN_USERNAME] = "";
+      char usrname[MAX_LEN_USERNAME];
       int usr_index = 0; 
-      for (size_t i = 0; i < array_length(users); ++i) {
+      for (size_t i = 0; i < array_length(users); i++) {
         if (users[i].fd == event_fd) {
           strcpy(usrname, users[i].usrname);
           usr_index = i;
@@ -121,10 +134,31 @@ void *handle_events(void *arg) {
         switch (request[1]) {
           // /u username asigna el username al usuario
           case 'u': 
-            strcpy(usrname, request+3); // req[3..max] /u username
-            strncpy(users[usr_index].usrname, usrname, MAX_LEN_USERNAME);
-            printf("Se conectó %s\n", usrname);
-            break;
+            char cmd_usrname[MAX_LEN_USERNAME];
+            strcpy(cmd_usrname, request+3); // req[3..max] /u username
+            size_t len = strlen(cmd_usrname);
+            if (cmd_usrname[len-1] == '\n') {
+              cmd_usrname[len-1] = '\0';
+            }
+            int usrname_taken = 0;
+            for (size_t i = 0; i < array_length(users); i++) {
+              if(strcmp(cmd_usrname, users[i].usrname) == 0) {
+                char buff[MAX_LEN_MESSAGE] = "El nombre de usuario ya se tomó, usá otro. Pd: se cambia con /u <usrname>\n";
+                buff[MAX_LEN_MESSAGE-1] = '\0'; // null terminated
+                int res = send_all(users[usr_index].fd, buff, MAX_LEN_MESSAGE);
+                if (res == -1) {
+                  perror("send_all: Error al enviar mensaje de usuario ya tomado.");
+                  break;
+                }
+                usrname_taken = 1;
+              }
+            }
+            if (!usrname_taken) {
+              printf("Cambio de nombre: %s -> %s\n", usrname, cmd_usrname);
+              strncpy(users[usr_index].usrname, cmd_usrname, MAX_LEN_USERNAME);
+              // TODO: broadcast cambio de nombre
+            }
+          break;
           case 'p':
             printf("---------- Usuarios -----------\n");
             for (size_t i = 0; i < array_length(users); ++i) {
@@ -140,18 +174,15 @@ void *handle_events(void *arg) {
         snprintf(response, len, "%s: %s", usrname, request);
 
         for (size_t i = 0; i < array_length(users); ++i) {
+          // TODO: poner user_index != i para evitar load de users[i]
           if (users[i].fd != event_fd) {
-            int pending_length = len;
-            while (pending_length > 0) {
-              int res = send(users[i].fd, response, pending_length, 0);
-              if (res == -1) {
-                printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",users[i].fd, errno);
-                break;
-              }
-              pending_length -= res;
+            int res = send_all(users[i].fd, response, len);
+            if (res == -1) {
+              printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",users[i].fd, errno);
+              break;
             }
           } else {
-            printf("%s:%.*s", usrname, len, request);
+            printf("%s: %.*s", usrname, len, request);
           }
         }
       }
@@ -203,7 +234,7 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    User new_usr = {socket_client, ""};
+    User new_usr = {socket_client, "anon"};
     array_append(users, new_usr);
 
     // le agrega la flag de no bloqueante
