@@ -31,6 +31,7 @@ typedef struct {
 
 User *users;
 int epoll_fd;
+pthread_rwlock_t users_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 int socket_init() {
   struct addrinfo hints;
@@ -94,7 +95,7 @@ void *handle_events(void *arg) {
     int nfds;
     do {
       nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-    } while (nfds < 0 && errno == EINTR);
+    } while (nfds < 0 && errno == EINTR); // fix gdb error
     if (nfds == -1) {
       perror("epoll_wait");
       exit(EXIT_FAILURE);
@@ -106,12 +107,14 @@ void *handle_events(void *arg) {
       // get username and index
       char usrname[MAX_LEN_USERNAME];
       int usr_index = 0; 
+      pthread_rwlock_rdlock(&users_rwlock);
       for (size_t i = 0; i < array_length(users); i++) {
         if (users[i].fd == event_fd) {
           strcpy(usrname, users[i].usrname);
           usr_index = i;
         }
       }
+      pthread_rwlock_unlock(&users_rwlock);
 
       char request[MAX_LEN_MESSAGE];
       int bytes_received = recv(event_fd, request, MAX_LEN_MESSAGE, 0);
@@ -121,11 +124,22 @@ void *handle_events(void *arg) {
         } else { // -1 error
           perror("recv: event_fd");
         }
-        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, event_fd, 0);
         close(event_fd);
+        pthread_rwlock_wrlock(&users_rwlock);
         array_remove(users, usr_index);
+        pthread_rwlock_unlock(&users_rwlock);
         continue;
       }
+      // rearma el socket pq fue consumido por EPOLLONESHOT
+      struct epoll_event ev;
+      ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT; // edge-triggered, oneshot despierta solo a 1 thread
+      ev.data.fd = event_fd;
+      if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, event_fd, &ev) == -1) {
+        perror("se rompió epoll_ctl rearme de socket");
+        return NULL;
+      }
+
+
 
       //comando
       if (request[0] == '/') {
@@ -137,7 +151,9 @@ void *handle_events(void *arg) {
             size_t len = strlen(cmd_usrname);
             if (len > MAX_LEN_USERNAME || len == 0) {
               char buff[MAX_LEN_MESSAGE] = "El nombre de usuario no puede ser ni muy largo ni vacío\n";
+              pthread_rwlock_rdlock(&users_rwlock);
               int res = send_all(users[usr_index].fd, buff, MAX_LEN_MESSAGE); 
+              pthread_rwlock_unlock(&users_rwlock);
               if (res == -1) {
                 perror("send_all: Error al enviar mensaje de usrname fuera de límites");
               }
@@ -147,6 +163,7 @@ void *handle_events(void *arg) {
               cmd_usrname[len-1] = '\0';
             }
             int usrname_taken = 0;
+            pthread_rwlock_rdlock(&users_rwlock);
             for (size_t i = 0; i < array_length(users); i++) {
               if(strcmp(cmd_usrname, users[i].usrname) == 0) {
                 char buff[MAX_LEN_MESSAGE] = "El nombre de usuario ya se tomó, usá otro. Pd: se cambia con /u <usrname>\n";
@@ -163,13 +180,16 @@ void *handle_events(void *arg) {
               strncpy(users[usr_index].usrname, cmd_usrname, MAX_LEN_USERNAME);
               // TODO: broadcast cambio de nombre
             }
+            pthread_rwlock_unlock(&users_rwlock);
           break;
           case 'p':
             printf("---------- Usuarios -----------\n");
+            pthread_rwlock_rdlock(&users_rwlock);
             for (size_t i = 0; i < array_length(users); ++i) {
               printf("usuario[%zu].fd=%d\n", i, users[i].fd);
               printf("usuario[%zu].usrname=%s\n", i, users[i].usrname);
             }
+            pthread_rwlock_unlock(&users_rwlock);
             break;
         }          
       } else {
@@ -178,8 +198,8 @@ void *handle_events(void *arg) {
         char response[len];
         snprintf(response, len, "%s: %s", usrname, request);
 
+        pthread_rwlock_rdlock(&users_rwlock);
         for (size_t i = 0; i < array_length(users); ++i) {
-          // TODO: poner user_index != i para evitar load de users[i]
           if (users[i].fd != event_fd) {
             int res = send_all(users[i].fd, response, len);
             if (res == -1) {
@@ -190,17 +210,8 @@ void *handle_events(void *arg) {
             printf("%s: %.*s", usrname, len, request);
           }
         }
+        pthread_rwlock_unlock(&users_rwlock);
       }
-      // rearma el socket pq fue consumido por EPOLLONESHOT
-      struct epoll_event ev;
-      ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT; // edge-triggered, oneshot despierta solo a 1 thread
-      ev.data.fd = event_fd;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, event_fd, &ev) == -1) {
-        //TODO: retornar bien
-        perror("se rompió epoll_ctl rearme de socket");
-        return NULL;
-      }
-
     }
   } 
 }
@@ -239,15 +250,20 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    User new_usr = {socket_client, "anon"};
-    array_append(users, new_usr);
-
     // le agrega la flag de no bloqueante
     int status = fcntl(socket_client, F_SETFL,
                        fcntl(socket_client, F_GETFL, 0) | O_NONBLOCK);
     if (status == -1) {
       perror("fcntl: non-block");
     }
+
+    User new_usr = {
+      .fd = socket_client, 
+      .usrname = "anon"
+    };
+    pthread_rwlock_wrlock(&users_rwlock);
+    array_append(users, new_usr);
+    pthread_rwlock_unlock(&users_rwlock);
 
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT; // edge-triggered, oneshot despierta solo a 1 thread
