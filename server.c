@@ -80,12 +80,10 @@ int socket_init() {
 int send_all(int fd, void *buf, size_t len) {
   char *ptr = (char *) buf;
   while (len > 0) {
-    int res = send(fd, buf, len, 0);
-    if (res == -1) {
-      return -1;
-    }
-    ptr++;
-    len -= res;
+    int bytes = send(fd, ptr, len, 0);
+    if (bytes == -1) return -1;
+    ptr += bytes;
+    len -= bytes;
   }
   return 0;
 }
