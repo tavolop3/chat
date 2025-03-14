@@ -135,6 +135,14 @@ void *handle_events(void *arg) {
             char cmd_usrname[MAX_LEN_USERNAME];
             strcpy(cmd_usrname, request+3); // req[3..max] /u username
             size_t len = strlen(cmd_usrname);
+            if (len > MAX_LEN_USERNAME || len == 0) {
+              char buff[MAX_LEN_MESSAGE] = "El nombre de usuario no puede ser ni muy largo ni vacío\n";
+              int res = send_all(users[usr_index].fd, buff, MAX_LEN_MESSAGE); 
+              if (res == -1) {
+                perror("send_all: Error al enviar mensaje de usrname fuera de límites");
+              }
+              break;
+            }
             if (cmd_usrname[len-1] == '\n') {
               cmd_usrname[len-1] = '\0';
             }
@@ -142,10 +150,9 @@ void *handle_events(void *arg) {
             for (size_t i = 0; i < array_length(users); i++) {
               if(strcmp(cmd_usrname, users[i].usrname) == 0) {
                 char buff[MAX_LEN_MESSAGE] = "El nombre de usuario ya se tomó, usá otro. Pd: se cambia con /u <usrname>\n";
-                buff[MAX_LEN_MESSAGE-1] = '\0'; // null terminated
                 int res = send_all(users[usr_index].fd, buff, MAX_LEN_MESSAGE);
                 if (res == -1) {
-                  perror("send_all: Error al enviar mensaje de usuario ya tomado.");
+                  perror("send_all: Error al enviar mensaje de usrname ya tomado.");
                   break;
                 }
                 usrname_taken = 1;
