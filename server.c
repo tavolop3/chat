@@ -110,7 +110,7 @@ void *handle_events(void *arg) {
     int nfds;
     do {
       nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-    } while (nfds < 0 && errno == EINTR); // fix gdb error
+    } while (nfds < 0 && errno == EINTR); // esto arregla error en gdb
     if (nfds == -1) {
       perror("epoll_wait");
       exit(EXIT_FAILURE);
@@ -135,7 +135,10 @@ void *handle_events(void *arg) {
       int bytes_received = recv(event_fd, request, MAX_LEN_MESSAGE, 0);
       if (bytes_received < 1) {
         if (bytes_received == 0) { // graceful shutdown
-          printf("Cliente desconectado.\n");
+          char msg[MAX_LEN_MESSAGE];
+          snprintf(msg, MAX_LEN_MESSAGE, "Se desconectó %s.\n", usrname);
+          atomic_broadcast(event_fd, msg, sizeof(msg));
+          printf(msg);
         } else { // -1 error
           perror("recv: event_fd");
         }
