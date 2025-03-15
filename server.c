@@ -33,6 +33,32 @@ User *users;
 int epoll_fd;
 pthread_rwlock_t users_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
+
+int send_all(int fd, void *buf, size_t len) {
+  char *ptr = (char *) buf;
+  while (len > 0) {
+    int bytes = send(fd, ptr, len, 0);
+    if (bytes == -1) return -1;
+    ptr += bytes;
+    len -= bytes;
+  }
+  return 0;
+}
+
+void atomic_broadcast(int sender_fd, char *msg, size_t len) {
+  pthread_rwlock_rdlock(&users_rwlock);
+  for (size_t i = 0; i < array_length(users); ++i) {
+    if (users[i].fd != sender_fd) {
+      int res = send_all(users[i].fd, msg, len);
+      if (res == -1) {
+        printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",users[i].fd, errno);
+        continue;
+      }
+    }
+  }
+  pthread_rwlock_unlock(&users_rwlock);
+}
+
 int socket_init() {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); // inicializa en 0
@@ -76,17 +102,6 @@ int socket_init() {
   }
 
   return socket_listen;
-}
-
-int send_all(int fd, void *buf, size_t len) {
-  char *ptr = (char *) buf;
-  while (len > 0) {
-    int bytes = send(fd, ptr, len, 0);
-    if (bytes == -1) return -1;
-    ptr += bytes;
-    len -= bytes;
-  }
-  return 0;
 }
 
 void *handle_events(void *arg) {
@@ -163,6 +178,7 @@ void *handle_events(void *arg) {
               cmd_usrname[len-1] = '\0';
             }
             int usrname_taken = 0;
+            // chequea si el usrname existe
             pthread_rwlock_rdlock(&users_rwlock);
             for (size_t i = 0; i < array_length(users); i++) {
               if(strcmp(cmd_usrname, users[i].usrname) == 0) {
@@ -177,11 +193,13 @@ void *handle_events(void *arg) {
             }
             pthread_rwlock_unlock(&users_rwlock);
             if (!usrname_taken) {
-              printf("Cambio de nombre: %s -> %s\n", usrname, cmd_usrname);
+              char msg[MAX_LEN_MESSAGE];
+              snprintf(msg, MAX_LEN_MESSAGE, "Cambio de nombre: %s -> %s\n", usrname, cmd_usrname);
               pthread_rwlock_wrlock(&users_rwlock);
               strncpy(users[usr_index].usrname, cmd_usrname, MAX_LEN_USERNAME);
               pthread_rwlock_unlock(&users_rwlock);
-              // TODO: broadcast cambio de nombre
+              atomic_broadcast(-1, msg, sizeof(msg)); // mandarle tmbn al sender
+              printf(msg);
             }
           break;
           case 'p':
@@ -199,20 +217,8 @@ void *handle_events(void *arg) {
         int len = MAX_LEN_USERNAME + 2 + strlen(request) + 1; // usrname: msg
         char response[len];
         snprintf(response, len, "%s: %s", usrname, request);
-
-        pthread_rwlock_rdlock(&users_rwlock);
-        for (size_t i = 0; i < array_length(users); ++i) {
-          if (users[i].fd != event_fd) {
-            int res = send_all(users[i].fd, response, len);
-            if (res == -1) {
-              printf("ERROR in broadcast, send to fd:%d failed, errno:%d, continuing...",users[i].fd, errno);
-              break;
-            }
-          } else {
-            printf("%s: %.*s", usrname, len, request);
-          }
-        }
-        pthread_rwlock_unlock(&users_rwlock);
+        atomic_broadcast(event_fd, response, len);
+        printf("%s", response);
       }
     }
   } 
