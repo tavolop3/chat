@@ -175,12 +175,14 @@ void *handle_events(void *arg) {
                 usrname_taken = 1;
               }
             }
+            pthread_rwlock_unlock(&users_rwlock);
             if (!usrname_taken) {
               printf("Cambio de nombre: %s -> %s\n", usrname, cmd_usrname);
+              pthread_rwlock_wrlock(&users_rwlock);
               strncpy(users[usr_index].usrname, cmd_usrname, MAX_LEN_USERNAME);
+              pthread_rwlock_unlock(&users_rwlock);
               // TODO: broadcast cambio de nombre
             }
-            pthread_rwlock_unlock(&users_rwlock);
           break;
           case 'p':
             printf("---------- Usuarios -----------\n");
@@ -240,9 +242,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  struct sockaddr_storage client_address;
+  socklen_t client_len = sizeof(client_address);
   for (;;) {
-    struct sockaddr_storage client_address;
-    socklen_t client_len = sizeof(client_address);
     int socket_client = accept(
         socket_listen, (struct sockaddr *)&client_address, &client_len);
     if (socket_client == -1) {
