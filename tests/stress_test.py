@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import time
+import json
 
 class StressTest:
     def __init__(self, host, port, num_senders, num_receivers, message_rate, duration):
@@ -17,7 +18,7 @@ class StressTest:
             reader, writer = await asyncio.open_connection(self.host, self.port)
             print(f"Sender {client_id} connected")
             msg_count = 0
-            max_messages = int(self.message_rate * self.duration)  # e.g., 150
+            max_messages = int(self.message_rate * self.duration)
 
             while msg_count < max_messages:
                 msg = f"Client {client_id}: Message {msg_count}\n".encode()
@@ -59,12 +60,17 @@ class StressTest:
         await asyncio.gather(*sender_tasks, *receiver_tasks)
 
         total_expected = self.num_senders * self.message_rate * self.duration
-        total_received = sum(self.received_counts)
-        print("\nStress Test Results:")
-        print(f"Expected messages per receiver (from {self.num_senders} senders): {total_expected}")
-        print(f"Actual messages received (total by {self.num_receivers} receivers): {total_received}")
-        for i, count in enumerate(self.received_counts):
-            print(f"Receiver {i}: {count} messages")
+        results = {
+            "config": {
+                "num_senders": self.num_senders,
+                "num_receivers": self.num_receivers,
+                "message_rate": self.message_rate,
+                "duration": self.duration
+            },
+            "expected_per_receiver": total_expected,
+            "actual_received": self.received_counts
+        }
+        print(json.dumps(results))
 
 def main():
     if len(sys.argv) != 5:
