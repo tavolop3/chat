@@ -205,6 +205,7 @@ void *handle_events(void *arg) {
               printf(msg);
             }
           break;
+
           case 'p':
             printf("---------- Usuarios -----------\n");
             pthread_rwlock_rdlock(&users_rwlock);
@@ -215,6 +216,7 @@ void *handle_events(void *arg) {
             pthread_rwlock_unlock(&users_rwlock);
             break;
         }          
+
       } else {
         // broadcast a todos los ususarios excepto el que envia
         int len = MAX_LEN_USERNAME + 2 + strlen(request) + 1; // usrname: msg
