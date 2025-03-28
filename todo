@@ -1,10 +1,4 @@
-threading: usar threads para mejorar la eficiencia, pthreads?
-
-performance: hashmap fd -> usuario para las operaciones dentro de epoll ¿?
-
-refactor: tomar el username una vez pq se usa en varios lados, usar una variable para data.fd
-
-agregar gracefully shutdown ctrl c
+chequear que los mensajes terminan en \n y \0 por seguridad, agregar si falta
 
 funcionalidades:
 historial: guardar el historial en un archivo, la idea es que despues se genere un archivo por canal

@@ -32,7 +32,8 @@ typedef struct {
 User *users;
 int epoll_fd;
 pthread_rwlock_t users_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-
+pthread_mutex_t history_lock = PTHREAD_MUTEX_INITIALIZER;
+FILE* hfile;
 
 int send_all(int fd, void *buf, size_t len) {
   char *ptr = (char *) buf;
@@ -224,6 +225,10 @@ void *handle_events(void *arg) {
         snprintf(response, len, "%s: %s", usrname, request);
         atomic_broadcast(event_fd, response, len);
         printf("%s", response);
+        pthread_mutex_lock(&history_lock);
+        fprintf(hfile, "%s", response);
+        fflush(hfile);
+        pthread_mutex_unlock(&history_lock);
       }
     }
   } 
@@ -251,6 +256,12 @@ int main(int argc, char *argv[]) {
       perror("pthread_create");
       exit(EXIT_FAILURE);
     }
+  }
+
+  hfile = fopen("history.txt", "a+");
+  if (hfile == NULL) {
+    perror("history file");
+    exit(EXIT_FAILURE);
   }
 
   struct sockaddr_storage client_address;
