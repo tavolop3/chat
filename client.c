@@ -12,7 +12,8 @@
 #include <unistd.h>
 
 #define MAX_EVENTS 10
-#define MAX_LEN_USERNAME 10
+#define MAX_LEN_USERNAME 32
+#define MAX_LEN_MSG 1024
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -60,12 +61,12 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  int status = // le agrega a los flags actuales el nonblock
-      fcntl(socket_peer, F_SETFL, fcntl(socket_peer, F_GETFL, 0) | O_NONBLOCK);
-  if (status == -1) {
-    perror("fcntl: non-block");
-    exit(EXIT_FAILURE);
-  }
+  // int status = // le agrega a los flags actuales el nonblock
+  //     fcntl(socket_peer, F_SETFL, fcntl(socket_peer, F_GETFL, 0) | O_NONBLOCK);
+  // if (status == -1) {
+  //   perror("fcntl: non-block");
+  //   exit(EXIT_FAILURE);
+  // }
 
   printf("Conectado.\n");
 
@@ -102,8 +103,8 @@ int main(int argc, char *argv[]) {
 
     for (int n = 0; n < nfds; ++n) {
       if (events[n].data.fd == socket_peer) {
-        char read[4096];
-        int bytes_received = recv(socket_peer, read, 4096, 0);
+        char read[MAX_LEN_MSG];
+        int bytes_received = recv(socket_peer, read, MAX_LEN_MSG, 0);
         if (bytes_received == -1) {
           perror("recv");
           exit(EXIT_FAILURE);
@@ -113,16 +114,40 @@ int main(int argc, char *argv[]) {
         }
         printf("%.*s", bytes_received, read);
       } else if (events[n].data.fd == 0) { // fd 0 = STDIN
-        char read[1024];
-        if (!fgets(read, 1024, stdin))
+
+        char usr_input[MAX_LEN_MSG];
+        if (!fgets(usr_input, MAX_LEN_MSG, stdin))
           break;
         // strlen NO incluye a \0, +1 para incluirlo y del otro lado
         // ya sabe donde termina
-        int bytes_sent = send(socket_peer, read, strlen(read)+1, 0);
+        int bytes_sent = send(socket_peer, usr_input, strlen(usr_input)+1, 0);
 
         if (bytes_sent == -1) {
           perror("send");
           exit(EXIT_FAILURE);
+        }
+
+
+        if (usr_input[0] == '/') {
+
+          if (strcmp(usr_input, "/h\n\0") == 0) {
+            char msg_recv[MAX_LEN_MSG];
+            for (;;) {
+              int bytes_received = recv(socket_peer, msg_recv, MAX_LEN_MSG, 0);
+              if(strcmp(msg_recv, "EOF") == 0)
+                break;
+              
+              if (bytes_received == -1) {
+                perror("receive history");
+                exit(EXIT_FAILURE);
+              } else if (bytes_received == 0) {
+                fprintf(stderr, "Server shutdown.\n");
+                exit(0);
+              }
+
+              printf("%.*s", MAX_LEN_MSG, msg_recv);
+            }
+          }
         }
       }
     }

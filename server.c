@@ -20,7 +20,7 @@
 #define PORT "8080"
 #define MAX_EVENTS 100
 #define MAX_QUEUE 128
-#define MAX_LEN_USERNAME 20
+#define MAX_LEN_USERNAME 32
 #define MAX_LEN_MESSAGE 1024
 #define MAX_THREADS 7
 
@@ -62,19 +62,18 @@ void atomic_broadcast(int sender_fd, char *msg, size_t len) {
 
 int socket_init() {
   struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints)); // inicializa en 0
+  memset(&hints, 0, sizeof(hints)); // initialization
   hints.ai_family = AF_INET;        // ipv4
   hints.ai_socktype = SOCK_STREAM;  // tcp
-  hints.ai_flags = AI_PASSIVE;      // * todas las interfaces
+  hints.ai_flags = AI_PASSIVE;      // * all interfaces
 
   struct addrinfo *bind_address;
   if (getaddrinfo(0, PORT, &hints, &bind_address)) {
     perror("getaddrinfo() failed");
     return 1;
   }
-  // getaddrinfo devuelve una dir compatible con bind, esta
-  // funcion hace facil cambiar a ipv6 comparado con
-  // rellenar la direccion manualmente
+  // getaddrinfo returns a bind compatible address 
+  // easier to switch to ipv6 instead of manually set the address
 
   int socket_listen;
   socket_listen = socket(bind_address->ai_family, bind_address->ai_socktype,
@@ -84,7 +83,7 @@ int socket_init() {
     return 1;
   }
 
-  // reuso de direccion por si queda un server finalizando
+  // addr reuse if a server is shuting down
   if (setsockopt(socket_listen, SOL_SOCKET, SO_REUSEADDR, &(int){1},
                  sizeof(int)) < 0) {
     perror("setsockopt: SO_REUSEADDR");
@@ -111,7 +110,7 @@ void *handle_events(void *arg) {
     int nfds;
     do {
       nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-    } while (nfds < 0 && errno == EINTR); // esto arregla error en gdb
+    } while (nfds < 0 && errno == EINTR); // fix error in gdb debugger
     if (nfds == -1) {
       perror("epoll_wait");
       exit(EXIT_FAILURE);
@@ -137,10 +136,10 @@ void *handle_events(void *arg) {
       if (bytes_received < 1) {
         if (bytes_received == 0) { // graceful shutdown
           char msg[MAX_LEN_MESSAGE];
-          snprintf(msg, MAX_LEN_MESSAGE, "Se desconectó %s.\n", usrname);
+          snprintf(msg, MAX_LEN_MESSAGE, "%s left the chat.\n", usrname);
           atomic_broadcast(event_fd, msg, sizeof(msg));
           printf(msg);
-        } else { // -1 error
+        } else {
           perror("recv: event_fd");
         }
         close(event_fd);
@@ -216,6 +215,24 @@ void *handle_events(void *arg) {
             }
             pthread_rwlock_unlock(&users_rwlock);
             break;
+
+          case 'h':
+            char hmsg[MAX_LEN_MESSAGE];
+            pthread_mutex_lock(&history_lock);
+            fseek(hfile, 0, SEEK_SET);
+            while(fgets(hmsg, MAX_LEN_MESSAGE, hfile)) { // fgets makes null terminated string
+              int res = send_all(users[usr_index].fd, hmsg, strlen(hmsg)+1);
+              if (res == -1) {
+                perror("send_all: error al enviar el historial.");
+                break;
+              }
+            }
+            pthread_mutex_unlock(&history_lock); 
+            int res = send_all(users[usr_index].fd, "EOF", 4);
+            if (res == -1) {
+              perror("send_all: error while sending EOF.");
+              break;
+            }
         }          
 
       } else {
